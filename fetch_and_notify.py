@@ -3,12 +3,11 @@ import feedparser
 import json
 import os
 import hashlib
-from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-NTFY_TOPIC   = os.environ.get("NTFY_TOPIC", "atharva-news-bot")  # change to your topic
+NTFY_TOPIC   = os.environ.get("NTFY_TOPIC", "news-wiz")
 SEEN_FILE    = "seen_ids.json"
 
 SOURCES = {
@@ -28,13 +27,9 @@ SOURCES = {
 
 # ── Seen IDs (dedup) ─────────────────────────────────────────────────────────
 def load_seen():
-    if os.path.exists(SEEN_FILE):
-        with open(SEEN_FILE) as f:
-            return set(json.load(f))
-    return set()
+    return set()  # temporary: always treat everything as new
 
 def save_seen(seen):
-    # keep last 500 only
     seen_list = list(seen)[-500:]
     with open(SEEN_FILE, "w") as f:
         json.dump(seen_list, f)
@@ -47,7 +42,7 @@ def fetch_rss(url):
     try:
         feed = feedparser.parse(url)
         items = []
-        for entry in feed.entries[:5]:  # latest 5
+        for entry in feed.entries[:5]:
             title = entry.get("title", "").strip()
             link  = entry.get("link", "")
             items.append({"title": title, "link": link})
@@ -114,7 +109,7 @@ def analyze(title):
         return "Analysis unavailable."
 
 # ── Ntfy Notification ─────────────────────────────────────────────────────────
-def notify(source, title, analysis, link):
+def notify(source, title, analysis):
     try:
         message = f"{title}\n\n{analysis}"
         requests.post(
@@ -134,17 +129,14 @@ def notify(source, title, analysis, link):
 def main():
     seen = load_seen()
     new_seen = set()
-
     all_items = []
 
-    # RSS sources
     for name, cfg in SOURCES.items():
         if cfg["type"] == "rss":
             items = fetch_rss(cfg["url"])
             for item in items:
                 all_items.append((name, item))
 
-    # WatcherGuru scrape
     wg_items = fetch_watcherguru()
     for item in wg_items:
         all_items.append(("WatcherGuru", item))
@@ -153,19 +145,18 @@ def main():
 
     for source, item in all_items:
         title = item["title"]
-        link  = item["link"]
         uid   = make_id(title)
 
         if uid in seen:
-            continue  # already processed
+            continue
 
         new_seen.add(uid)
-        print(f"\n🔍 [{source}] {title}")
+        print(f"\n[{source}] {title}")
 
         analysis = analyze(title)
-        print(f"📊 {analysis}")
+        print(f"Analysis: {analysis}")
 
-        notify(source, title, analysis, link)
+        notify(source, title, analysis)
 
     seen.update(new_seen)
     save_seen(seen)
