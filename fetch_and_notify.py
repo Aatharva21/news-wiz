@@ -74,24 +74,23 @@ def fetch_watcherguru():
 # ── AI Analysis via Groq ──────────────────────────────────────────────────────
 def analyze(title):
     if not GROQ_API_KEY:
-        print("ERROR: GROQ_API_KEY is empty!")
         return "No Groq key set."
     try:
+        system_prompt = """You are a sharp financial analyst. Given a news headline, respond in exactly this format:
+
+What happened: [1 sentence]
+
+Impact: [2 sentences on what markets this moves. Always mention BTC/Crypto, Gold, and Oil even briefly.]
+
+Verdict: [e.g. Bearish equities | Bullish gold | Neutral BTC]"""
+
         payload = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a sharp financial analyst. Given a news headline, write 2-3 sentences analyzing "
-                        "the real market impact. Think naturally about what this news actually moves — don't force "
-                        "every asset class. Always include your view on Crypto/BTC, Gold, and Oil somewhere in the "
-                        "analysis even if briefly. Be intelligent, specific, and direct. No bullet points, no fluff."
-                    )
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Headline: {title}"}
             ],
-            "max_tokens": 150,
+            "max_tokens": 200,
             "temperature": 0.3,
         }
         r = requests.post(
@@ -103,18 +102,16 @@ def analyze(title):
             json=payload,
             timeout=15
         )
-        print(f"Groq status: {r.status_code}")
         data = r.json()
-        print(f"Groq response: {json.dumps(data)[:300]}")
         return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        print(f"Groq exception: {e}")
+        print(f"Groq error: {e}")
         return "Analysis unavailable."
 
 # ── Ntfy Notification ─────────────────────────────────────────────────────────
 def notify(source, title, analysis):
     try:
-        message = f"{title}\n\n{analysis}"
+        message = f"{title}\n\nTrade Wiz Analysis\n{analysis}"
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}",
             data=message.encode("utf-8"),
