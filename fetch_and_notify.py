@@ -79,7 +79,7 @@ def fetch_watcherguru():
 # ── AI Analysis via Groq ──────────────────────────────────────────────────────
 def analyze(title):
     if not GROQ_API_KEY:
-        return "⚠️ No Groq key set."
+        return "No Groq key set."
     try:
         payload = {
             "model": "llama3-8b-8192",
@@ -87,11 +87,10 @@ def analyze(title):
                 {
                     "role": "system",
                     "content": (
-                        "You are a sharp financial analyst. Given a news headline, "
-                        "in 2-3 lines tell: (1) what happened, (2) which asset classes "
-                        "are impacted (crypto, equities, gold, forex, bonds), "
-                        "(3) likely direction (bullish/bearish/neutral) and why. "
-                        "Be concise and direct. No fluff."
+                        "You are a sharp financial analyst. Given a news headline, write 2-3 sentences analyzing "
+                        "the real market impact. Think naturally about what this news actually moves — don't force "
+                        "every asset class. Always include your view on Crypto/BTC, Gold, and Oil somewhere in the "
+                        "analysis even if briefly. Be intelligent, specific, and direct. No bullet points, no fluff."
                     )
                 },
                 {"role": "user", "content": f"Headline: {title}"}
@@ -111,23 +110,23 @@ def analyze(title):
         data = r.json()
         return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        return f"Analysis error: {e}"
+        print(f"Groq raw error: {e}")
+        return "Analysis unavailable."
 
 # ── Ntfy Notification ─────────────────────────────────────────────────────────
 def notify(source, title, analysis, link):
     try:
-        message = f"{analysis}\n\n🔗 {link}"
+        message = f"{title}\n\n{analysis}"
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}",
             data=message.encode("utf-8"),
             headers={
-                "Title": f"[{source}] {title[:80]}",
+                "Title": source,
                 "Priority": "default",
-                "Tags": "newspaper,chart_with_upwards_trend",
             },
             timeout=10
         )
-        print(f"✅ Sent: {title[:60]}")
+        print(f"Sent: {title[:60]}")
     except Exception as e:
         print(f"Ntfy error: {e}")
 
