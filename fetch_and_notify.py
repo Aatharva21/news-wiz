@@ -74,6 +74,7 @@ def fetch_watcherguru():
 # ── AI Analysis via Groq ──────────────────────────────────────────────────────
 def analyze(title):
     if not GROQ_API_KEY:
+        print("ERROR: GROQ_API_KEY is empty!")
         return "No Groq key set."
     try:
         payload = {
@@ -102,10 +103,12 @@ def analyze(title):
             json=payload,
             timeout=15
         )
+        print(f"Groq status: {r.status_code}")
         data = r.json()
+        print(f"Groq response: {json.dumps(data)[:300]}")
         return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        print(f"Groq raw error: {e}")
+        print(f"Groq exception: {e}")
         return "Analysis unavailable."
 
 # ── Ntfy Notification ─────────────────────────────────────────────────────────
